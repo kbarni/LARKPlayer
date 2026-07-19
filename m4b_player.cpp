@@ -211,7 +211,20 @@ void update_metadata_ui() {
         }
         g_object_unref(loader);
     } else {
-        gtk_image_clear(GTK_IMAGE(cover_image));
+        // No embedded cover art: show the generic audiobook icon,
+        // scaled to fit the cover area without distorting it
+        GdkPixbuf *pixbuf = gdk_pixbuf_new_from_inline(-1, audiobook, FALSE, NULL);
+        if (pixbuf) {
+            int w = gdk_pixbuf_get_width(pixbuf);
+            int h = gdk_pixbuf_get_height(pixbuf);
+            double scale = MIN((double)cover_size_w / w, (double)cover_size_h / h);
+            GdkPixbuf *scaled = gdk_pixbuf_scale_simple(pixbuf, (int)(w * scale), (int)(h * scale), GDK_INTERP_BILINEAR);
+            gtk_image_set_from_pixbuf(GTK_IMAGE(cover_image), scaled);
+            g_object_unref(scaled);
+            g_object_unref(pixbuf);
+        } else {
+            gtk_image_clear(GTK_IMAGE(cover_image));
+        }
     }
 }
 

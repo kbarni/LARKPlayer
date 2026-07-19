@@ -37,6 +37,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     lipc
     dl
     m
+    rt
 )
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)

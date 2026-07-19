@@ -12,6 +12,7 @@
 #include "assets/close_icon.h"
 #include "assets/open_icon.h"
 #include "assets/history_icon.h"
+#include "assets/audiobook.h"
 #include "assets/bookmarklist_icon.h"
 #include "assets/bookmark_icon.h"
 #include "assets/chapters_icon.h"

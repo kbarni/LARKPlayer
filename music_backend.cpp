@@ -395,7 +395,10 @@ void Decoder::decode_mp4_file(const char* filepath, int start_time) {
 }
 
 void Decoder::decode_miniaudio(const char* filepath, int start_time) {
-    ma_decoder_config decoder_config = ma_decoder_config_init(ma_format_s16, 2, 0); 
+    ma_decoder_config decoder_config = ma_decoder_config_init(ma_format_s16, 2, 0);
+    // Generate an MP3 seek table at init (one parse-only scan) so seeks don't
+    // have to decode from the start of the file. Ignored by FLAC/WAV backends.
+    decoder_config.seekPointCount = 500;
     ma_decoder decoder;
     
     ma_result result = ma_decoder_init_file(filepath, &decoder_config, &decoder);
@@ -640,10 +643,12 @@ void MusicBackend::read_metadata(const char* filepath) {
     meta_album.clear();
     cover_art.clear();
     chapters.clear();
-    current_samplerate = 44100; 
+    current_samplerate = 44100;
     total_duration = 0;
+    metadata_filepath.clear();
 
     if (filepath == nullptr) return;
+    metadata_filepath = filepath;
 
     InputType type = detect_input_type_helper(filepath);
     AudioFormat format = detect_format_helper(filepath, type);
@@ -727,9 +732,11 @@ void MusicBackend::play_file(const char* filepath, int start_time) {
     
     InputType type = detect_input_type_helper(filepath);
     if (type == InputType::STREAM) {
-        current_samplerate = 44100; 
+        current_samplerate = 44100;
         total_duration = 0;
-    } else {
+    } else if (metadata_filepath != filepath || total_duration <= 0) {
+        // Skip the probe when metadata is already cached for this file:
+        // for MP3 the duration query scans the entire file.
         read_metadata(filepath);
     }
 
