@@ -14,6 +14,8 @@ pkg_check_modules(SQLite IMPORTED_TARGET REQUIRED sqlite3)
 
 find_package(Threads REQUIRED)
 
+add_subdirectory(miniaudio)
+
 add_executable(${PROJECT_NAME}
     m4b_player.cpp
     music_backend.cpp
@@ -27,6 +29,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     PkgConfig::XML
     PkgConfig::SQLite
     Threads::Threads
+    miniaudio
     faad
     faad_drm
     gstreamer-0.10

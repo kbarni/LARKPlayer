@@ -7,15 +7,30 @@
 #include <atomic>
 #include <pthread.h>
 #include <memory>
+#include <mutex>
+#include <sys/types.h>
 
 // Callback type for End of Stream (song finished)
 typedef void (*EosCallback)(void* user_data);
 
+// Callback type for Errors
+typedef void (*ErrorCallback)(const char* msg, void* user_data);
+
 struct Chapter {
-    uint64_t timestamp; // ms? 100ns? Let's assume ms for API consistency or keep raw. 
-                        // mp4read uses 100ns for Nero. QuickTime implementation I did uses 100ns (ms * 10000).
-                        // Let's stick to 100ns (1e-7 s) as per mp4read implementation to avoid precision loss.
+    uint64_t timestamp; // 100ns units
     std::string title;
+};
+
+enum class AudioFormat {
+    UNKNOWN,
+    M4B_AAC,    // M4A/M4B MP4 Container (FAAD + mp4read)
+    MINIAUDIO,  // MP3, FLAC, WAV (miniaudio)
+    AAC_ADTS    // Raw AAC stream (FAAD) - Future support
+};
+
+enum class InputType {
+    FILE,
+    STREAM
 };
 
 // --- Decoder Class ---
@@ -35,6 +50,11 @@ public:
     // Check if the decoder thread is currently running.
     bool is_running() const;
 
+    void set_error_callback(ErrorCallback callback, void* user_data);
+    
+    // Internal use for stream killing
+    void set_stream_pid(pid_t pid);
+
 private:
     std::atomic<bool> stop_flag;
     std::atomic<bool> running;
@@ -42,8 +62,23 @@ private:
     std::string current_filepath;
     int start_time;
 
+    ErrorCallback on_error_callback;
+    void* error_user_data;
+
+    std::mutex pid_mutex;
+    pid_t current_stream_pid;
+
     static void* thread_func(void* arg);
     void decode_loop();
+
+    // Decoding Strategies
+    void decode_mp4_file(const char* filepath, int start_time);
+    void decode_miniaudio(const char* filepath, int start_time); // For files
+    void decode_stream(const char* url); // For HTTP streams
+
+    // Helpers
+    AudioFormat detect_format(const char* resource, InputType type);
+    InputType detect_input_type(const char* resource);
 };
 
 // --- MusicBackend Class ---
@@ -70,6 +105,7 @@ public:
     const char* get_current_filepath();
 
     void set_eos_callback(EosCallback callback, void* user_data);
+    void set_error_callback(ErrorCallback callback, void* user_data);
 
     void read_metadata(const char* filepath);
     
@@ -93,6 +129,9 @@ private:
 
     EosCallback on_eos_callback;
     void* eos_user_data;
+
+    ErrorCallback on_error_callback;
+    void* error_user_data;
     
     gint64 last_position;
 
@@ -101,6 +140,9 @@ private:
 
     // GStreamer bus callback
     static gboolean bus_callback_func(GstBus *bus, GstMessage *msg, gpointer data);
+
+    // Internal error callback to bridge Decoder -> MusicBackend -> UI
+    static void internal_decoder_error_callback(const char* msg, void* user_data);
 };
 
 #endif // MUSIC_BACKEND_H

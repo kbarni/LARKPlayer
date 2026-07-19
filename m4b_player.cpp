@@ -168,9 +168,23 @@ void init_database() {
     }
 }
 
+// Basename without extension, used when the file has no embedded tags (MP3/FLAC/WAV)
+std::string get_display_name(const std::string& path) {
+    size_t slash = path.find_last_of('/');
+    std::string name = (slash == std::string::npos) ? path : path.substr(slash + 1);
+    size_t dot = name.find_last_of('.');
+    if (dot != std::string::npos && dot > 0) name = name.substr(0, dot);
+    return name;
+}
+
 void update_metadata_ui() {
-    if (!backend.meta_title.empty()) {
-        char *markup = g_markup_printf_escaped("<span font_desc='Sans Bold %d'>%s</span>", title_font_size, backend.meta_title.c_str());
+    std::string title = backend.meta_title;
+    if (title.empty() && !current_file.empty()) {
+        title = get_display_name(current_file);
+    }
+
+    if (!title.empty()) {
+        char *markup = g_markup_printf_escaped("<span font_desc='Sans Bold %d'>%s</span>", title_font_size, title.c_str());
         gtk_label_set_markup(GTK_LABEL(title_label), markup);
         g_free(markup);
     } else {
@@ -199,6 +213,26 @@ void update_metadata_ui() {
     } else {
         gtk_image_clear(GTK_IMAGE(cover_image));
     }
+}
+
+gboolean show_error_dialog_idle(gpointer data) {
+    char *msg = (char*)data;
+    GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(window),
+                                       GTK_DIALOG_DESTROY_WITH_PARENT,
+                                       GTK_MESSAGE_ERROR,
+                                       GTK_BUTTONS_OK,
+                                       "%s", msg);
+    gtk_window_set_title(GTK_WINDOW(dialog), "L:A_N:application_PC:T_ID:com.kbarni.larkplayer");
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    g_free(msg);
+    return FALSE;
+}
+
+// Called from the decoder thread; GTK calls must happen on the main loop
+void on_backend_error(const char* msg, void* data) {
+    (void)data;
+    g_idle_add(show_error_dialog_idle, g_strdup(msg));
 }
 
 gboolean update_ui(gpointer data) {
@@ -484,6 +518,7 @@ void on_chapter_list_clicked(GtkWidget *widget, gpointer data) {
                                            GTK_MESSAGE_INFO,
                                            GTK_BUTTONS_OK,
                                            "No chapters found.");
+        gtk_window_set_title(GTK_WINDOW(dialog), "L:A_N:application_PC:T_ID:com.kbarni.larkplayer");
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
         return;
@@ -552,6 +587,8 @@ void on_chapter_list_clicked(GtkWidget *widget, gpointer data) {
 
 int main(int argc, char *argv[]) {
     gtk_init(&argc, &argv);
+
+    backend.set_error_callback(on_backend_error, NULL);
 
     init_database();
     if (argc > 1) {
