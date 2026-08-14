@@ -3,7 +3,7 @@ LARK - Libre Audiobook Reader for Kindle
 
 <a href='https://ko-fi.com/E1E71RAR86' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi3.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a> <-- All proceeds go to charities.
 
-LARK is a free **M4B/MP3** audiobook reader for jailbroken Kindles.
+LARK is a free **M4B/MP3** audiobook reader for jailbroken Kindles. **Only Firmware <5.19 supported right now. Working on a solution for newer devices**
 
 ![Screenshot](assets/screenshot.png)
 
